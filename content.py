@@ -4,8 +4,9 @@ from utils import  findAllCharIndexesInString
 from utils import  generatedotdotSlash
 
 
-def lowerCasePost(content,url):
+def lowerCaseMethod(content,url):
     content = content.replace("POST","PoST",1)
+    content = content.replace("GET","gET",1)
     if ".php" in url:
         content = content.replace(".php","%2ephp",1)
     if ".jsp" in url:
@@ -32,6 +33,19 @@ def absoluteUrl(reqcontent,observed_hosts,url,path,host):
         payload_reqs.add(reqcontent_1)
     return payload_reqs
 
+
+def otherMethods(content):
+    payload_reqs =set()
+
+    methods = ["PUT","DELETE","HEAD","PATCH"]
+    first_line = content[:10]
+    if "GET" in first_line:
+        for method in methods:
+            payload_reqs.add(content.replace("GET",method,1))
+    if "POST" in first_line:
+        for method in methods:
+            payload_reqs.add(content.replace("POST",method,1))
+    return payload_reqs
 
 def tabHttp1(content,path,okpath):
     a = '/\tHTTP/1.1/'
@@ -73,12 +87,12 @@ def deleteHostHeader(content):
 def processContent(reqcontent,url,path,domain,ip,observed_hosts,okpaths,basePort):
     payload_req_contents = set()
 
-    if "POST" in reqcontent[:10]:
-            payload_req_contents.add(lowerCasePost(reqcontent,url))
+    payload_req_contents.add(lowerCaseMethod(reqcontent,url))
     payload_req_contents.add(changeHost2Ip(reqcontent,ip))
     payload_req_contents.add(deleteHostHeader(reqcontent))
     payload_req_contents.update(absoluteUrl(reqcontent=reqcontent,observed_hosts=observed_hosts,url=url,host=domain,path=path))
     payload_req_contents.update(zeroStartingPort(reqcontent,basePort))
+    payload_req_contents.update(otherMethods(reqcontent))
     if  okpaths:
         okpath = random.choice(list(okpaths))
         payload_req_contents.add(tabHttp1(reqcontent,path,okpath))

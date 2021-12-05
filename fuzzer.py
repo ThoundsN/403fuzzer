@@ -12,6 +12,7 @@ from burp import IBurpExtender, IScannerCheck, IScanIssue, IExtensionStateListen
 from  path  import processPath
 from  content  import processContent
 from utils import  findAllCharIndexesInString,array2Str
+import random
 
 
 
@@ -97,7 +98,7 @@ class BurpExtender(IBurpExtender,IScannerCheck,IExtensionStateListener):
         self.saveToSitemap()
 
     def isPositive(self, status_code):
-        while status_code not in [400,401,402,403,404,405,406,500,501]:
+        while status_code not in [400,401,402,403,404,405,406,500,501,503]:
             return True
         return  False
 
@@ -122,15 +123,21 @@ class BurpExtender(IBurpExtender,IScannerCheck,IExtensionStateListener):
         if path.endswith("/"):
             for i in range(1,len(slash_indexs)):
                 if i  <= self._ok_path_maxcount:   #limit the string count in /aaa/bbb/ccc
-                    self._ok_paths.add(path[:slash_indexs[i]])
+                    cur_path = path[:slash_indexs[i]]
+                    if '.' not in cur_path:
+                        self._ok_paths.add(cur_path)
         else:
             if len(slash_indexs) == self._ok_path_maxcount:
-                self._ok_paths.add(path)
+                if '.' not in path:
+                    self._ok_paths.add(path)
             for i in range(1,len(slash_indexs)):
                 if i  <= self._ok_path_maxcount:   #limit the string count in /aaa/bbb/ccc
-                    self._ok_paths.add(path[:slash_indexs[i]])
+                    cur_path = path[:slash_indexs[i]]
+                    if '.' not in cur_path:
+                        self._ok_paths.add()
                     continue
-
+        if random.random() < 0.1:
+            self.saveToSitemap()
 
 
 
@@ -148,9 +155,9 @@ class BurpExtender(IBurpExtender,IScannerCheck,IExtensionStateListener):
         self._debug(base_path)
 
         payload_paths = processPath(base_path,self._ok_paths)
-        # self._debug(payload_paths)
 
         for payload_path in payload_paths:
+            self._debug(payload_path)
             payload_req =  base_req.replace(base_path,payload_path)
             payload_req_byte =  self._helpers.stringToBytes(payload_req)
             verifyingRequestResponse =  self._callbacks.makeHttpRequest(http_service, payload_req_byte)
@@ -177,7 +184,7 @@ class BurpExtender(IBurpExtender,IScannerCheck,IExtensionStateListener):
 
 
         for payload_req in  payload_reqs:
-            # self._stdout.println(payload_req)
+            # self._debug(payload_req)
             payload_req_byte =  self._helpers.stringToBytes(payload_req)
 
             verifyingRequestResponse =  self._callbacks.makeHttpRequest(http_service, payload_req_byte)
@@ -194,17 +201,12 @@ class BurpExtender(IBurpExtender,IScannerCheck,IExtensionStateListener):
         return []
 
     def _debug(self,a):
-        # self._stdout.println("okpaths:   ")
-        #
-        # for a in self._ok_paths:
-        #     self._stdout.println(a)
         self._stdout.println(a)
 
 
 
     def doActiveScan(self, baseRequestResponse,insertionPoint):
         self._stdout.println("Active scanning started")
-        # self._debug()
         if not self._callbacks.isInScope(self._helpers.analyzeRequest(baseRequestResponse).getUrl()):
             return None
         old_url = self._helpers.analyzeRequest(baseRequestResponse).getUrl().toString()

