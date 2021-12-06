@@ -98,7 +98,7 @@ class BurpExtender(IBurpExtender,IScannerCheck,IExtensionStateListener):
         self.saveToSitemap()
 
     def isPositive(self, status_code):
-        while status_code not in [400,401,402,403,404,405,406,500,501,503]:
+        if status_code not in [400,401,402,403,404,405,406,500,501,503]:
             return True
         return  False
 
@@ -134,10 +134,8 @@ class BurpExtender(IBurpExtender,IScannerCheck,IExtensionStateListener):
                 if i  <= self._ok_path_maxcount:   #limit the string count in /aaa/bbb/ccc
                     cur_path = path[:slash_indexs[i]]
                     if '.' not in cur_path:
-                        self._ok_paths.add()
+                        self._ok_paths.add(cur_path)
                     continue
-        if random.random() < 0.1:
-            self.saveToSitemap()
 
 
 
@@ -152,7 +150,7 @@ class BurpExtender(IBurpExtender,IScannerCheck,IExtensionStateListener):
         
         
         issues = []
-        self._debug(base_path)
+        # self._debug(base_path)
 
         payload_paths = processPath(base_path,self._ok_paths)
 
@@ -207,29 +205,35 @@ class BurpExtender(IBurpExtender,IScannerCheck,IExtensionStateListener):
 
     def doActiveScan(self, baseRequestResponse,insertionPoint):
         self._stdout.println("Active scanning started")
-        if not self._callbacks.isInScope(self._helpers.analyzeRequest(baseRequestResponse).getUrl()):
-            return None
-        old_url = self._helpers.analyzeRequest(baseRequestResponse).getUrl().toString()
-        if old_url in self._observed_urls:
-            return None
-        self._observed_urls.add(old_url)
-
         status_code = self._helpers.analyzeResponse(baseRequestResponse.getResponse()).getStatusCode()
         old_path = self._helpers.analyzeRequest(baseRequestResponse).getUrl().getPath()
         old_host = self._helpers.analyzeRequest(baseRequestResponse).getUrl().getHost()
+        old_url = self._helpers.analyzeRequest(baseRequestResponse).getUrl().toString()
+
+
+        if not self._callbacks.isInScope(self._helpers.analyzeRequest(baseRequestResponse).getUrl()):
+            return None
+        if old_url in self._observed_urls:
+            return None
+
+        self._observed_urls.add(old_url)
+
 
         if not self.hasPath(old_path):
-            return
-        if not self.isInteresting(status_code, old_url):
-            # if status_code == 200 or status_code == 201:
-            while status_code in [200,201,203,204,301,302,303,304,305,306]:
-                self.observeOkPath(old_path)
-                self.observeHost(old_host)
             return None
 
 
-        issues = self.fuzzPath(baseRequestResponse) + self.fuzzContent(baseRequestResponse)
+        if not self.isInteresting(status_code, old_url):
+            if status_code in [200,201,203,204,301,302,303,304,305,306]:
+                self.observeOkPath(old_path)
+                self.observeHost(old_host)
+                self._debug("not Interesting")
+            return None
 
+
+        # issues = []
+
+        issues = self.fuzzPath(baseRequestResponse) + self.fuzzContent(baseRequestResponse)
         if len(issues) > 0:
             return issues
         else:
